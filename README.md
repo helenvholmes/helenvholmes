@@ -1,3 +1,3 @@
 ### It's scooooooooby!
 
-Design Technologist @NYPL
+Design Technologist [@NYPL](https://github.com/NYPL)
