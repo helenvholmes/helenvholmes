@@ -1,3 +1,3 @@
-### It'ssssss scooooooooby!
+### It's scooooooooby!
 
-Design Technologist @nypl
+Design Technologist @NYPL
