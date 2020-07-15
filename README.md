@@ -1,3 +1,3 @@
-### It's scooooooooby!
+### It'ssssss scooooooooby!
 
-Hello hello hi hello welcome to my channel, please remember to like and subscribe
+Design Technologist @nypl
