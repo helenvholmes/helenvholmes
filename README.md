@@ -1,6 +1,6 @@
 ### It's scooooooooby!
 
-Design Technologist at the New York Public Library | [@NYPL](https://github.com/NYPL)
+Design Technologist at the [New York Public Library](https://www.nypl.org/) | [@NYPL](https://github.com/NYPL)
 
 Working on: [Design Systems 🌟](https://github.com/NYPL/nypl-design-system)
 
