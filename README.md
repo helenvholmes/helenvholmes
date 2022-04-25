@@ -1,6 +1,6 @@
 ### It's scooooooooby!
 
-Current cooking up the next big thing.
+Currently workiing on design systems @Modern-Treasury.
 
 Previously:
 - Design Technologist at the [New York Public Library](https://www.nypl.org/) | [@NYPL](https://github.com/NYPL) | [NYPL Design System](https://github.com/NYPL/nypl-design-system)
