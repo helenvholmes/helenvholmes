@@ -1,6 +1,6 @@
 ### It's scooooooooby!
 
-Currently working on design systems [@Modern-Treasury](https://github.com/Modern-Treasury).
+Currently working on design systems [@Modern-Treasury](https://github.com/Modern-Treasury) as [@hvh-mt](https://github.com/scooooooooby).
 
 Previously:
 - Design Technologist at the [New York Public Library](https://www.nypl.org/) | [@NYPL](https://github.com/NYPL) | [NYPL Design System](https://github.com/NYPL/nypl-design-system)
