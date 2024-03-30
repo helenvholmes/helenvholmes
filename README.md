@@ -1,6 +1,6 @@
 ### It's scooooooooby!
 
-Staff Design Engineer [@Modern-Treasury](https://github.com/Modern-Treasury) as [@hvh-mt](https://github.com/hvh-mt).
+Staff Design Engineer [@Modern-Treasury](https://github.com/Modern-Treasury).
 
 Previously:
 - Design Technologist at the [New York Public Library](https://www.nypl.org/) | [@NYPL](https://github.com/NYPL) | [NYPL Design System](https://github.com/NYPL/nypl-design-system)
