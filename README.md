@@ -1,6 +1,6 @@
-### It's scooooooooby!
+### It's @helenvholmes!
 
-Currently cooking, check back soon.
+Currently looking for my next gig. You think it might be with you? Why thank you! You can reach me at sayhi @ helenvholmes.com.
 
 Previously:
 - Staff Design Engineer [@Modern-Treasury](https://github.com/Modern-Treasury).
