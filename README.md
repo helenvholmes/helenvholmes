@@ -1,4 +1,4 @@
-### Hi! Thanks for liking and subscribing to my channel.
+### Hi!
 
 I'm Helen, and I build design systems. I love making you as designer proud. You can check out my work at [helenvholmes.com](https://helenvholmes.com).
 
