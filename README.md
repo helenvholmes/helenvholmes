@@ -1,6 +1,8 @@
-### It's @helenvholmes!
+### Hi! Thanks for liking and subscribing to my channel.
 
-Currently looking for my next gig. You think it might be with you? Why thank you! You can reach me at sayhi @ helenvholmes.com.
+I'm Helen, and I build design systems. I love making you as designer proud. You can check out my work at [helenvholmes.com](https://helenvholmes.com).
+
+I'm currently looking for my next gig. You think it might be with you? Why thank you for considering me! You can reach me at sayhi @ helenvholmes.com.
 
 Previously:
 - Staff Design Engineer [@Modern-Treasury](https://github.com/Modern-Treasury).
