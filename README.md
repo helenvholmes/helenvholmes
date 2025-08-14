@@ -2,7 +2,7 @@
 
 I'm Helen, a UX designer building design systems. You can check out my work at [helenvholmes.com](https://helenvholmes.com).
 
-I'm currently looking for my next gig. You think it might be with you? You can reach me at sayhi @ helenvholmes.com.
+You can reach me at sayhi @ helenvholmes.com.
 
 Previously:
 - Staff Design Engineer [@Modern-Treasury](https://github.com/Modern-Treasury).
