@@ -1,6 +1,6 @@
 ### Hi!
 
-I'm Helen, a UX designer building design systems. You can check out my work at [helenvholmes.com](https://helenvholmes.com).
+I'm Helen, a UX designer building design systems. Lately I've been building tiny open source apps for stuff I've always wanted to have. You can check out my work at [helenvholmes.com](https://helenvholmes.com) or below.
 
 You can reach me at sayhi @ helenvholmes.com.
 
