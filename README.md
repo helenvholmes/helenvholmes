@@ -4,11 +4,9 @@ I'm Helen, a Design Engineer with 10+ years building design systems used by prod
 
 If you think I'd be a good fit for your company, please reach out at sayhi@helenvholmes.com. More at [helenvholmes.com](https://helenvholmes.com).
 
-**Skills for coding agents:**
+**Things I'm building:**
 - [**skills**](https://github.com/helenvholmes/skills): pre-flight skills that help agents ship well on the web, covering accessibility, motion, layout, performance and security.
 - [**portfolio-starter**](https://github.com/helenvholmes/portfolio-starter): skills for starting a design portfolio.
-
-**Things I'm building:**
 - [**bookbox**](https://github.com/helenvholmes/bookbox): a free, self-hosted reading log with offline mode, instant search and Spotify audiobook progress. [bookbox.lol](https://bookbox.lol/)
 - [**seeaassoonnss**](https://github.com/helenvholmes/seeaassoonnss): document the latest season of your life. [seeaassoonnss.app](https://seeaassoonnss.app/)
 - [**lifx-mac-menubar**](https://github.com/helenvholmes/lifx-mac-menubar): control your LIFX lights from the Mac menu bar.
