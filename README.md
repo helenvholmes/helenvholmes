@@ -10,7 +10,7 @@ If you think I'd be a good fit for your company, please reach out at sayhi@helen
 
 **Things I'm building:**
 - [**bookbox**](https://github.com/helenvholmes/bookbox): a free, self-hosted reading log with offline mode, instant search and Spotify audiobook progress. [bookbox.lol](https://bookbox.lol/)
-- [**seasons**](https://github.com/helenvholmes/seasons): document the latest season of your life. [seeaassoonnss.app](https://seeaassoonnss.app/)
+- [**seasons**](https://seeaassoonnss.app/): document the latest season of your life.
 - [**lifx-mac-menubar**](https://github.com/helenvholmes/lifx-mac-menubar): control your LIFX lights from the Mac menu bar.
 - [**dotfiles**](https://github.com/helenvholmes/dotfiles): stuff worth shuttling from computer to computer, project to project, lest I forget.
 
