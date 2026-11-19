@@ -1,6 +1,6 @@
 ### Hi!
 
-I'm Helen, a Design Engineer with 10+ years building design systems used by production apps at companies such as Modern Treasury and the New York Public Library. I design and build AI-native workflows: making design systems usable by coding agents, designing agent and conversational UX, and shipping full-stack products with agents.
+I'm Helen, a Design Engineer with 10+ years building design systems used by production apps at companies such as [Modern Treasury](https://www.moderntreasury.com/) and the [New York Public Library](https://www.nypl.org/). I design and build AI-native workflows: making design systems usable by coding agents, designing agent and conversational UX, and shipping full-stack products with agents.
 
 If you think I'd be a good fit for your company, please reach out at sayhi@helenvholmes.com. More at [helenvholmes.com](https://helenvholmes.com).
 
