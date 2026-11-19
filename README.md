@@ -1,6 +1,8 @@
 ### Hi!
 
-I'm Helen, a design engineer. I build small, free, open source tools for things I've always wanted to have, and I share what I've learned about shipping good work on the web. You can reach me at sayhi @ helenvholmes.com, or see more at [helenvholmes.com](https://helenvholmes.com).
+I'm Helen, a Design Engineer with 10+ years building design systems used by production apps at companies such as Modern Treasury and the New York Public Library. I design and build AI-native workflows: making design systems usable by coding agents, designing agent and conversational UX, and shipping full-stack products with agents.
+
+If you think I'd be a good fit for your company, please reach out at sayhi@helenvholmes.com. More at [helenvholmes.com](https://helenvholmes.com).
 
 **Things I'm building:**
 - [**bookbox**](https://github.com/helenvholmes/bookbox): a free, self-hosted reading log with offline mode, instant search and Spotify audiobook progress. [bookbox.lol](https://bookbox.lol/)
