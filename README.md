@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="koi/pond-dark.svg">
+  <img src="koi/pond-light.svg" alt="ASCII koi swimming across a pond" width="100%">
+</picture>
+
 ### Hi!
 
 I'm Helen, a Design Engineer with 10+ years building design systems used by production apps at companies such as [Modern Treasury](https://www.moderntreasury.com/) and the [New York Public Library](https://www.nypl.org/). I design and build AI-native workflows: making design systems usable by coding agents, designing agent and conversational UX, and shipping full-stack products with agents.
