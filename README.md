@@ -1,6 +1,6 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="koi/pond-dark.svg">
-  <img src="koi/pond-light.svg" alt="ASCII koi swimming across a pond" width="100%">
+  <source media="(prefers-color-scheme: dark)" srcset="koi/pond-dark.webp">
+  <img src="koi/pond-light.webp" alt="ASCII koi swimming across a pond" width="100%">
 </picture>
 
 ### Hi!
