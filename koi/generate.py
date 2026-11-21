@@ -1,210 +1,266 @@
-"""Generate an animated ASCII koi pond as SVG for a GitHub profile README.
+"""Render a looping ASCII koi pond for a GitHub profile README.
 
-GitHub strips JavaScript from READMEs, but CSS animations inside an SVG
-referenced with <img> still play. Each koi is a grid of keycap tiles;
-movement uses steps() timing so the fish hop cell to cell like a
-character grid instead of gliding.
+Each koi is simulated with a spine that follows its swim path and a tail
+that undulates. Every frame, the bodies are rasterized onto a character
+grid of keycap tiles, which is what gives the smooth-but-gridded look.
+Frames are encoded as an animated WebP (GitHub READMEs can't run
+JavaScript, but they play animated images).
 
-Usage: python3 koi/generate.py   (writes koi/pond-light.svg and koi/pond-dark.svg)
+The loop is seamless: every fish's speed, wobble and tail beat are
+chosen so they all repeat exactly every LOOP seconds.
+
+Usage: python3 koi/generate.py   (needs Pillow, numpy and ffmpeg)
+Writes koi/pond-light.webp and koi/pond-dark.webp.
 """
 import math
-import random
+import shutil
+import subprocess
+import tempfile
+import zlib
 from pathlib import Path
 
-COLS, ROWS = 88, 16
-CW, CH = 10, 12  # cell size in px
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
+
+COLS, ROWS = 110, 24
+CW, CH = 8, 10          # cell size in layout px
+SCALE = 1.5              # 1.5x keeps it reasonably crisp without huge files
 W, H = COLS * CW, ROWS * CH
+LOOP = 8.0              # seconds; the animation repeats exactly
+FPS = 30
+FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf"
 
 THEMES = {
     "light": {
-        "dot": "#d9d6cf",
-        "ripple": "#b9c3c7",
+        "bg": (255, 255, 255, 255),
+        "dot": (217, 214, 207, 255),
         "white": ("#eeeae2", "#9b968c"),
         "red": ("#e0623a", "#7a2610"),
         "black": ("#3a3836", "#bdb8ae"),
         "gold": ("#e2ad3c", "#6e4c08"),
         "edge": ("#e6e2da", "#b7b1a6"),
+        "eye": ("#2a2826", "#eeeae2"),
     },
     "dark": {
-        "dot": "#2c2f33",
-        "ripple": "#3b4a52",
+        "bg": (13, 17, 23, 255),
+        "dot": (44, 47, 51, 255),
         "white": ("#d8d4cb", "#6b665d"),
         "red": ("#d9572f", "#ffd2bf"),
         "black": ("#26252a", "#a9a49b"),
         "gold": ("#d9a032", "#fff0c4"),
         "edge": ("#5d5a55", "#c9c4ba"),
+        "eye": ("#111111", "#d8d4cb"),
     },
 }
 
-# Density glyphs, dense in the middle of the body, light at the edges.
-DENSE = "%#XZ"
-MID = "x*+z"
-LIGHT = ":·+"
+DENSE, MID, LIGHT = "%#XZ", "xz*+", ":+·"
+
+# variety, body length px, row (center y in cells), direction, speed px/s,
+# wraps per loop, tail beats per loop, y-wobble cycles per loop, wobble rows, start phase
+FISH = [
+    ("kohaku",   230, 4.8,   1, 150, 1, 14, 1, 1.5, 0.10),
+    ("showa",    200, 18.6, -1, 170, 1, 16, 2, 1.0, 0.55),
+    ("yamabuki", 170, 11.4, -1, 140, 1, 12, 1, 2.0, 0.85),
+    ("sanke",    210, 10.2,  1, 185, 1, 17, 1, 1.5, 0.62),
+    ("kohaku",   150, 15.6, -1, 240, 1, 19, 1, 1.5, 0.30),
+]
 
 
-def body_halfwidth(t):
-    """Half-height of the fish body at position t (0 = tail tip, 1 = nose)."""
-    if t < 0.18:  # tail fin: flares out
-        return 0.6 + (0.18 - t) * 9
-    if t < 0.35:  # caudal peduncle, the narrow waist
-        return 0.6 + (t - 0.18) * 4
-    u = (t - 0.35) / 0.65
-    return 0.9 + 1.6 * math.sin(min(u * 1.25, 1) * math.pi / 2) * (1 - max(0, u - 0.75) * 2.4)
+def halfwidth(u):
+    """Body half-height in px at u (0 = nose, 1 = tail tip)."""
+    if u < 0.14:
+        return 7 + 21 * math.sin(u / 0.14 * math.pi / 2) ** 0.7
+    if u < 0.78:
+        k = (u - 0.14) / 0.64
+        return 28 - 21 * k ** 1.3
+    # tail fin flares out
+    return 7 + (u - 0.78) / 0.22 * 20
 
 
-def make_fish(length, variety, rng, wiggle):
-    """Return {(col,row): (colorkey, glyph)} for a right-facing fish.
-
-    wiggle shifts the tail rows up or down a little to make a swim frame.
-    """
-    cells = {}
-    cy = 3
-    for c in range(length):
-        t = c / (length - 1)
-        hw = body_halfwidth(t)
-        # the rear third bends with the wiggle
-        bend = wiggle * max(0.0, (0.4 - t)) * 2.6
-        is_tail = t < 0.18
-        for r in range(-4, 5):
-            d = abs(r - bend)
-            if d > hw + 0.25:
-                continue
-            if is_tail and d < 0.5 and t < 0.1:
-                continue  # fork in the tail fin
-            edge = d > hw - 0.7
-            glyph = rng.choice(LIGHT if edge else (MID if d > hw * 0.45 else DENSE))
-            if is_tail:
-                glyph = rng.choice(LIGHT + "x")
-            cells[(c, cy + r)] = [("edge" if (edge or is_tail) else "white"), glyph]
-    # eye
-    eye = (length - 3, cy - 1)
-    if eye in cells:
-        cells[eye] = ["black", "o"]
-    # pectoral fins
-    fc = int(length * 0.62)
-    for dr in (-1, 1):
-        r = cy + dr * round(body_halfwidth(fc / (length - 1)) + 0.4)
-        cells.setdefault((fc, r), ["edge", ":"])
-        cells[(fc - 1, r + dr)] = ["edge", "·"]
-        cells[(fc - 2, r + dr)] = ["edge", ":"]
-    paint(cells, variety, length, cy, rng)
-    return {k: tuple(v) for k, v in cells.items()}
-
-
-def paint(cells, variety, length, cy, rng):
-    body = [k for k, v in cells.items() if v[0] == "white"]
-    if variety == "yamabuki":
-        for k in body:
-            cells[k][0] = "gold"
-        return
-    blobs = []
+def blobs_for(variety, seed):
+    rng = np.random.default_rng(seed)
+    out = []
     if variety in ("kohaku", "showa", "sanke"):
         for _ in range(3):
-            blobs.append(("red", rng.uniform(0.35, 0.95) * length, cy + rng.uniform(-1.2, 1.2), rng.uniform(1.6, 2.8)))
+            out.append(("red", rng.uniform(0.08, 0.6), rng.uniform(-0.6, 0.6), rng.uniform(0.08, 0.13), rng.uniform(0.45, 0.8)))
     if variety in ("showa", "sanke"):
-        n = 4 if variety == "showa" else 2
-        for _ in range(n):
-            blobs.append(("black", rng.uniform(0.3, 0.9) * length, cy + rng.uniform(-1.5, 1.5), rng.uniform(1.0, 1.9)))
-    for k in body:
-        for color, bx, by, rad in blobs:
-            if (k[0] - bx) ** 2 / 2.2 + (k[1] - by) ** 2 < rad ** 2:
-                cells[k][0] = color
+        for _ in range(4 if variety == "showa" else 2):
+            out.append(("black", rng.uniform(0.15, 0.65), rng.uniform(-0.8, 0.8), rng.uniform(0.04, 0.08), rng.uniform(0.3, 0.55)))
+    return out
 
 
-def tile(x, y, colorkey, glyph, theme):
-    fill, ink = THEMES[theme][colorkey]
-    g = {"<": "&lt;", "&": "&amp;"}.get(glyph, glyph)
-    return (
-        f'<rect x="{x * CW + 0.5}" y="{y * CH + 0.5}" width="{CW - 1}" height="{CH - 1}" rx="1.5" fill="{fill}"/>'
-        f'<text x="{x * CW + CW / 2}" y="{y * CH + CH - 3}" fill="{ink}">{g}</text>'
-    )
+def color_at(variety, blobs, u, v):
+    if variety == "yamabuki":
+        return "gold"
+    c = "white"
+    for name, bu, bv, ru, rv in blobs:
+        if ((u - bu) / ru) ** 2 + ((v - bv) / rv) ** 2 < 1:
+            c = name
+    return c
 
 
-def build(theme):
-    rng = random.Random(7)
-    t = THEMES[theme]
-    out = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}" role="img" aria-label="ASCII koi swimming in a pond">',
-        "<style>",
-        "text{font:600 8px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;text-anchor:middle}",
-        ".f{animation-iteration-count:infinite}",
-        ".swim{animation-name:swim;animation-iteration-count:infinite}",
-        ".swimL{animation-name:swimL;animation-iteration-count:infinite}",
-        ".bob{animation-name:bob;animation-iteration-count:infinite}",
-        ".fa{animation:fa .9s steps(1) infinite}",
-        ".fb{animation:fb .9s steps(1) infinite}",
-        ".fc{animation:fc .9s steps(1) infinite}",
-        "@keyframes fa{0%{opacity:1}25%,100%{opacity:0}}",
-        "@keyframes fb{0%{opacity:0}25%{opacity:1}50%{opacity:0}75%{opacity:1}100%{opacity:0}}",
-        "@keyframes fc{0%,50%{opacity:0}50.01%{opacity:1}75%,100%{opacity:0}}",
-        ".rp{animation:rp 6s steps(1) infinite;opacity:0}",
-        "@keyframes rp{0%{opacity:0}40%{opacity:.9}55%{opacity:.5}70%,100%{opacity:0}}",
-        "@media (prefers-reduced-motion:reduce){*{animation:none!important}.fa{opacity:1}.fb,.fc{opacity:0}}",
-    ]
+def glyph_for(seed, u, side, depth):
+    h = zlib.crc32(f"{seed}:{int(u * 24)}:{side}".encode())
+    pool = DENSE if depth > 0.6 else MID if depth > 0.3 else LIGHT
+    return pool[h % len(pool)]
 
-    fishes = [
-        # variety, length, row, direction, seconds per crossing, start offset (0-1), bob rows
-        ("kohaku", 18, 1, 1, 34, 0.15, 2),
-        ("showa", 15, 7, -1, 29, 0.55, 2),
-        ("yamabuki", 13, 3, -1, 41, 0.05, 3),
-        ("sanke", 16, 8, 1, 38, 0.7, 1),
-        ("kohaku", 11, 4, 1, 26, 0.45, 2),
-    ]
-    for i, (_, length, _, d, _, _, bob) in enumerate(fishes):
-        travel = (COLS + length + 4) * CW
-        out.append(
-            f"@keyframes s{i}{{from{{transform:translateX({-length * CW if d > 0 else W}px)}}"
-            f"to{{transform:translateX({W if d > 0 else -length * CW}px)}}}}"
-        )
-        out.append(
-            f"@keyframes b{i}{{0%,100%{{transform:translateY(0)}}50%{{transform:translateY({bob * CH}px)}}}}"
-        )
-    out.append("</style>")
 
-    # static water: a faint dotted grid
-    dots = []
+def spine(f, t):
+    """Points along the spine (nose first), in unwrapped px coordinates."""
+    variety, length, row, d, speed, wraps, beats, wob, wob_rows, phase = f
+    span = speed * LOOP / wraps
+    n = 26
+    pts = []
+    for j in range(n):
+        u = j / (n - 1)
+        tt = t - u * length / speed            # where the head was a moment ago
+        x = (phase * span + d * speed * tt)
+        y = row * CH + wob_rows * 12 * math.sin(2 * math.pi * wob * tt / LOOP + phase * 6)
+        pts.append([x, y])
+    pts = np.array(pts)
+    # lateral undulation, stronger toward the tail
+    for j in range(n):
+        u = j / (n - 1)
+        a, b = pts[max(j - 1, 0)], pts[min(j + 1, n - 1)]
+        tx, ty = b - a
+        norm = math.hypot(tx, ty) or 1
+        nx, ny = -ty / norm, tx / norm
+        amp = 1.5 + 9 * u ** 2
+        off = amp * math.sin(2 * math.pi * beats * t / LOOP - u * 4.2)
+        pts[j] += (nx * off, ny * off)
+    return pts, span
+
+
+def halfwidth_v(u):
+    """Vectorized halfwidth for numpy arrays."""
+    head = 7 + 21 * np.sin(np.clip(u / 0.14, 0, 1) * np.pi / 2) ** 0.7
+    k = np.clip((u - 0.14) / 0.64, 0, 1)
+    body = 28 - 21 * k ** 1.3
+    tail = 7 + (u - 0.78) / 0.22 * 20
+    return np.where(u < 0.14, head, np.where(u < 0.78, body, tail))
+
+
+SUB = 3  # supersamples per cell edge, for partial coverage at the fish's edges
+
+
+def rasterize(f, idx, t, layer):
+    """Append (col, row, colorkey, glyph, coverage) tiles for one fish."""
+    variety, length = f[0], f[1]
+    pts, span = spine(f, t)
+    blobs = blobs_for(variety, 40 + idx)
+    base = pts[:, 0].min()
+    shift = -math.floor((base + length) / span) * span
+    for copy in (shift, shift + span, shift - span):
+        p = pts + (copy, 0)
+        if p[:, 0].max() < -40 or p[:, 0].min() > W + 40:
+            continue
+        x0, x1 = int(max(0, (p[:, 0].min() - 40) // CW)), int(min(COLS - 1, (p[:, 0].max() + 40) // CW))
+        y0, y1 = int(max(0, (p[:, 1].min() - 40) // CH)), int(min(ROWS - 1, (p[:, 1].max() + 40) // CH))
+        cs, rs = np.meshgrid(np.arange(x0, x1 + 1), np.arange(y0, y1 + 1))
+        cs, rs = cs.ravel(), rs.ravel()
+        offs = (np.arange(SUB) + 0.5) / SUB
+        ox, oy = np.meshgrid(offs, offs)
+        # sample points: (cells, SUB*SUB, 2)
+        qx = (cs[:, None] + ox.ravel()[None]) * CW
+        qy = (rs[:, None] + oy.ravel()[None]) * CH
+        q = np.stack([qx, qy], -1).reshape(-1, 2)
+        a, b = p[:-1], p[1:]
+        seg = b - a
+        seglen2 = (seg ** 2).sum(1)
+        rel = q[:, None, :] - a[None]
+        w = np.clip((rel * seg[None]).sum(-1) / seglen2, 0, 1)
+        proj = a[None] + seg[None] * w[..., None]
+        dist = np.hypot(*(q[:, None, :] - proj).transpose(2, 0, 1))
+        k = dist.argmin(1)
+        ar = np.arange(len(q))
+        dd = dist[ar, k]
+        u = (k + w[ar, k]) / len(seg)
+        relk = rel[ar, k]
+        segk = seg[k]
+        side = np.where(segk[:, 0] * relk[:, 1] - segk[:, 1] * relk[:, 0] > 0, 1, -1)
+        hw = halfwidth_v(u)
+        body = dd <= hw
+        fin = (~body) & (u > 0.24) & (u < 0.38) & (dd < hw + 11)
+        fork = (u > 0.9) & (dd < 6)
+        inside = (body | fin) & ~fork
+        n = SUB * SUB
+        inside = inside.reshape(-1, n)
+        cover = inside.mean(1)
+        mid = n // 2  # center sample decides color and glyph
+        uc, ddc, sc, hwc = (arr.reshape(-1, n)[:, mid] for arr in (u, dd, side, hw))
+        finc = fin.reshape(-1, n)[:, mid]
+        for i in np.nonzero(cover > 0)[0]:
+            ui, di, si, hi = float(uc[i]), float(ddc[i]), int(sc[i]), float(hwc[i])
+            depth = max(0.0, 1 - di / hi)
+            if finc[i] or ui > 0.78 or depth < 0.22:
+                ck = "edge"
+            else:
+                ck = color_at(variety, blobs, ui, si * min(di / hi, 1))
+            g = glyph_for(idx, ui, si, depth)
+            if 0.06 < ui < 0.11 and 0.35 < di / hi < 0.75 and si < 0:
+                ck, g = "eye", "o"
+            layer.append((int(cs[i]), int(rs[i]), ck, g, float(cover[i])))
+
+
+def tile_cache(theme):
+    font = ImageFont.truetype(FONT, 7 * SCALE)
+    cache = {}
+
+    def get(ck, g, cov):
+        level = max(1, min(6, round(cov * 6)))
+        key = (ck, g, level)
+        if key not in cache:
+            fill, ink = THEMES[theme][ck]
+            im = Image.new("RGBA", (int(CW * SCALE), int(CH * SCALE)), (0, 0, 0, 0))
+            dr = ImageDraw.Draw(im)
+            dr.rounded_rectangle([1, 1, int(CW * SCALE) - 2, int(CH * SCALE) - 2], radius=int(2 * SCALE), fill=fill)
+            dr.text((CW * SCALE / 2, CH * SCALE / 2 + 1), g, font=font, fill=ink, anchor="mm")
+            if level < 6:
+                a = im.getchannel("A").point(lambda v: int(v * (level / 6) ** 0.8))
+                im.putalpha(a)
+            cache[key] = im
+        return cache[key]
+
+    return get
+
+
+def background(theme):
+    im = Image.new("RGBA", (int(W * SCALE), int(H * SCALE)), THEMES[theme]["bg"])
+    dr = ImageDraw.Draw(im)
+    rad = 0.6 * SCALE
     for r in range(ROWS):
         for c in range(COLS):
             if (r + c) % 2 == 0:
-                dots.append(f"M{c * CW + CW / 2},{r * CH + CH / 2}h.01")
-    out.append(f'<path d="{"".join(dots)}" stroke="{t["dot"]}" stroke-width="1.6" stroke-linecap="round"/>')
+                cx, cy = (c * CW + CW / 2) * SCALE, (r * CH + CH / 2) * SCALE
+                dr.ellipse([cx - rad, cy - rad, cx + rad, cy + rad], fill=THEMES[theme]["dot"])
+    return im
 
-    # a few ripples that come and go
-    for k in range(9):
-        c, r = rng.randrange(2, COLS - 2), rng.randrange(1, ROWS - 1)
-        delay = rng.uniform(0, 6)
-        out.append(
-            f'<text class="rp" style="animation-delay:-{delay:.2f}s" x="{c * CW + CW / 2}" y="{r * CH + CH - 3}" fill="{t["ripple"]}">~</text>'
-        )
 
-    for i, (variety, length, row, d, secs, offset, bob) in enumerate(fishes):
-        frng = random.Random(100 + i)
-        steps_x = COLS + length
-        frames = []
-        for wig in (-1, 0, 1):
-            frames.append(make_fish(length, variety, random.Random(100 + i), wig))
-        # keep patterns stable across frames: frames share a seed
-        out.append(
-            f'<g style="animation:s{i} {secs}s steps({steps_x}) infinite;animation-delay:-{offset * secs:.2f}s">'
-        )
-        out.append(
-            f'<g style="animation:b{i} {secs / 2.3:.2f}s steps({bob * 2}) infinite;animation-delay:-{frng.uniform(0, 5):.2f}s">'
-        )
-        for cls, cells in zip(("fa", "fb", "fc"), frames):
-            parts = []
-            for (c, r), (ck, glyph) in cells.items():
-                x = c if d > 0 else (length - 1 - c)
-                parts.append(tile(x, r + row - 1, ck, glyph, theme))
-            out.append(f'<g class="{cls}" style="animation-delay:-{i * 0.17:.2f}s">{"".join(parts)}</g>')
-        out.append("</g></g>")
-
-    out.append("</svg>")
-    return "\n".join(out)
+def render(theme, out_path):
+    bg = background(theme)
+    tiles = tile_cache(theme)
+    n = int(LOOP * FPS)
+    tmp = Path(tempfile.mkdtemp())
+    for i in range(n):
+        t = i / FPS
+        frame = bg.copy()
+        for idx, f in enumerate(FISH):
+            layer = []
+            rasterize(f, idx, t, layer)
+            for c, r, ck, g, cov in layer:
+                frame.alpha_composite(tiles(ck, g, cov), (int(c * CW * SCALE), int(r * CH * SCALE)))
+        frame.save(tmp / f"{i:04d}.png")
+    subprocess.run(
+        ["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(FPS), "-i", str(tmp / "%04d.png"),
+         "-c:v", "libwebp_anim", "-lossless", "0", "-q:v", "55", "-compression_level", "6", "-pix_fmt", "yuv420p", "-loop", "0", str(out_path)],
+        check=True,
+    )
+    shutil.rmtree(tmp)
 
 
 if __name__ == "__main__":
     here = Path(__file__).parent
     for theme in THEMES:
-        svg = build(theme)
-        (here / f"pond-{theme}.svg").write_text(svg)
-        print(theme, f"{len(svg) / 1024:.0f} KB")
+        out = here / f"pond-{theme}.webp"
+        render(theme, out)
+        print(theme, f"{out.stat().st_size / 1024:.0f} KB")
